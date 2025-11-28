@@ -1,0 +1,60 @@
+# Documentation changes
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: ['*.md', 'docs/**/*']
+
+# Generator core changes
+generator:
+  - changed-files:
+    - any-glob-to-any-file: ['generators/**/*']
+
+# Template changes
+templates:
+  - changed-files:
+    - any-glob-to-any-file: ['generators/app/templates/**/*']
+
+# Framework-specific changes
+sklearn:
+  - changed-files:
+    - any-glob-to-any-file: ['**/sklearn/**/*', '**/*sklearn*']
+
+xgboost:
+  - changed-files:
+    - any-glob-to-any-file: ['**/xgboost/**/*', '**/*xgboost*']
+
+tensorflow:
+  - changed-files:
+    - any-glob-to-any-file: ['**/tensorflow/**/*', '**/*tensorflow*']
+
+transformers:
+  - changed-files:
+    - any-glob-to-any-file: ['**/transformers/**/*', '**/*transformers*']
+
+# Infrastructure changes
+docker:
+  - changed-files:
+    - any-glob-to-any-file: ['**/Dockerfile*', '**/*.dockerfile']
+
+sagemaker:
+  - changed-files:
+    - any-glob-to-any-file: ['**/sagemaker/**/*', '**/*sagemaker*']
+
+# Testing changes
+tests:
+  - changed-files:
+    - any-glob-to-any-file: ['test/**/*', '**/*.test.js', '**/*test*']
+
+# CI/CD changes
+ci:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**/*']
+
+# Dependencies
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: ['package*.json', 'requirements*.txt']
+
+# Configuration
+config:
+  - changed-files:
+    - any-glob-to-any-file: ['.eslintrc*', '.gitignore', '*.config.*']
