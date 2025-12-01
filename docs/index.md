@@ -1,17 +1,31 @@
-# Welcome to MkDocs
+# ML Container Creator
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+!!! info "Under Construction"
+    This documentation is currently being built. Check back soon for complete guides!
 
-## Commands
+Welcome to the ML Container Creator documentation!
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+## Overview
 
-## Project layout
+ML Container Creator simplifies machine learning deployments on AWS SageMaker by generating production-ready containers with minimal configuration.
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+## Quick Start
+
+```bash
+npm install -g yo
+npm link
+yo ml-container-creator
+```
+
+## Features
+
+- **Multi-framework support**: sklearn, XGBoost, TensorFlow, Transformers
+- **SageMaker AI endpoint-ready**: Health checks, model serving, and deployment scripts
+- **Local testing**: Validate before deployment
+- **AWS best practices**: Built-in SageMaker compatibility
+
+## Next Steps
+
+- [Getting Started Guide](getting-started.md)
+- [🚧 API Reference](api-reference.md)
+- [🚧 Examples](examples.md)
