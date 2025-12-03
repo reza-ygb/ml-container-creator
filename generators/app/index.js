@@ -5,6 +5,8 @@ const path = require('path');
 const os = require('os');
 const Generator = require('yeoman-generator').default || require('yeoman-generator');
 
+const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.ml-container-creator-rc.json');
+
 /**
  * ML Container Creator Generator
  * 
@@ -39,6 +41,51 @@ module.exports = class extends Generator {
     };
 
     /**
+     * Initializing phase - Loads global configuration.
+     * 
+     * Loads configuration from the user's home directory or prompts for first-time setup.
+     * The config is stored in this.globalConfig for use in prompting().
+     * 
+     * @async
+     * @returns {Promise<void>}
+     */
+    async initializing() {
+        let globalConfig = {};
+
+        // Check if config exists, otherwise run first-time setup
+        if (fs.existsSync(GLOBAL_CONFIG_PATH)) {
+            try {
+                globalConfig = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_PATH, 'utf8'));
+            } catch (e) {
+                // If config is corrupted, warn and proceed
+                console.warn('⚠️  Global config file is corrupted, using defaults.');
+            }
+        } else {
+            console.log('\n👋 First time setup detected! Please configure your defaults.');
+            const setupAnswers = await this.prompt([
+                {
+                    type: 'list',
+                    name: 'defaultAwsRegion',
+                    message: 'What is your preferred default AWS Region?',
+                    choices: ['us-east-1'], // Add more regions here if supported in the future
+                    default: 'us-east-1'
+                }
+            ]);
+
+            globalConfig = setupAnswers;
+            try {
+                fs.writeFileSync(GLOBAL_CONFIG_PATH, JSON.stringify(globalConfig, null, 2));
+                console.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
+            } catch (err) {
+                console.warn('⚠️  Could not save configuration file.');
+                globalConfig = {}; // Reset to defaults on write failure
+            }
+        }
+
+        this.globalConfig = globalConfig;
+    }
+
+    /**
      * Prompting phase - Collects user input through interactive prompts.
      * 
      * Prompts are organized into logical phases:
@@ -53,41 +100,6 @@ module.exports = class extends Generator {
      * @returns {Promise<void>}
      */
     async prompting() {
-
-    // Define path for global configuration file in user's home directory
-    const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.ml-container-creator-rc.json');
-    let globalConfig = {};
-
-    // Check if config exists, otherwise run first-time setup
-    if (fs.existsSync(GLOBAL_CONFIG_PATH)) {
-        try {
-            globalConfig = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_PATH, 'utf8'));
-            } catch (e) {
-                // If config is corrupted, warn and proceed
-                console.warn('⚠️  Global config file is corrupted, using defaults.');
-                // Optionally, log the error for debugging:
-                // console.warn(e);
-            }
-            } else {
-                console.log('\n👋 First time setup detected! Please configure your defaults.');
-                const setupAnswers = await this.prompt([
-                    {
-                        type: 'list',
-                        name: 'defaultAwsRegion',
-                        message: 'What is your preferred default AWS Region?',
-                        choices: ['us-east-1'], // Add more regions here if supported in the future
-                        default: 'us-east-1'
-                    }
-                ]);
-
-                globalConfig = setupAnswers;
-                try {
-                    fs.writeFileSync(GLOBAL_CONFIG_PATH, JSON.stringify(globalConfig, null, 2));
-                    console.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
-                } catch (err) {
-                    console.warn('⚠️  Could not save configuration file.');
-                }
-            }
         // Generate timestamp for unique project directory names
         const buildTimestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         
@@ -180,8 +192,7 @@ module.exports = class extends Generator {
                 type: 'checkbox',
                 name: 'testTypes',
                 message: 'Test type?',
-                choices: (answers) => {
-                    // Transformers can only be tested on hosted endpoints (require GPU)
+                choices: (_answers) => {
                     if (coreAnswers.framework === 'transformers') {
                         return ['hosted-model-endpoint'];
                     }
@@ -189,7 +200,7 @@ module.exports = class extends Generator {
                     return ['local-model-cli', 'local-model-server', 'hosted-model-endpoint'];
                 },
                 when: answers => answers.includeTesting,
-                default: (answers) => {
+                default: (_answers) => {
                     if (coreAnswers.framework === 'transformers') {
                         return ['hosted-model-endpoint'];
                     }
@@ -218,8 +229,7 @@ module.exports = class extends Generator {
                 type: 'list',
                 name: 'instanceType',
                 message: 'Instance type?',
-                choices: (answers) => {
-                    // Traditional ML can run on CPU or GPU
+                choices: (_answers) => {
                     if (coreAnswers.framework !== 'transformers') {
                         return ['cpu-optimized', 'gpu-enabled'];
                     }
@@ -235,7 +245,7 @@ module.exports = class extends Generator {
                 name: 'awsRegion',
                 message: 'Target AWS region?',
                 choices: ['us-east-1'],
-                default: globalConfig.defaultAwsRegion || 'us-east-1'
+                default: this.globalConfig.defaultAwsRegion || 'us-east-1'
             }
         ]);
 
