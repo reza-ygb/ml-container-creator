@@ -63,7 +63,10 @@ module.exports = class extends Generator {
         try {
             globalConfig = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_PATH, 'utf8'));
             } catch (e) {
-           // If config is corrupted, ignore and proceed
+                // If config is corrupted, warn and proceed
+                console.warn('⚠️  Global config file is corrupted, using defaults.');
+                // Optionally, log the error for debugging:
+                // console.warn(e);
             }
             } else {
                 console.log('\n👋 First time setup detected! Please configure your defaults.');
