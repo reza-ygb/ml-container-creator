@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const Generator = require('yeoman-generator').default || require('yeoman-generator');
 
 /**
