@@ -54,6 +54,37 @@ module.exports = class extends Generator {
      */
     async prompting() {
 
+    // Define path for global configuration file in user's home directory
+    const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.ml-container-creator-rc.json');
+    let globalConfig = {};
+
+    // Check if config exists, otherwise run first-time setup
+    if (fs.existsSync(GLOBAL_CONFIG_PATH)) {
+        try {
+            globalConfig = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_PATH, 'utf8'));
+            } catch (e) {
+           // If config is corrupted, ignore and proceed
+            }
+            } else {
+                console.log('\n👋 First time setup detected! Please configure your defaults.');
+                const setupAnswers = await this.prompt([
+                    {
+                        type: 'list',
+                        name: 'defaultAwsRegion',
+                        message: 'What is your preferred default AWS Region?',
+                        choices: ['us-east-1'], // Add more regions here if supported in the future
+                        default: 'us-east-1'
+                    }
+                ]);
+
+                globalConfig = setupAnswers;
+                try {
+                    fs.writeFileSync(GLOBAL_CONFIG_PATH, JSON.stringify(globalConfig, null, 2));
+                    console.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
+                } catch (err) {
+                    console.warn('⚠️  Could not save configuration file.');
+                }
+            }
         // Generate timestamp for unique project directory names
         const buildTimestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         
@@ -201,7 +232,7 @@ module.exports = class extends Generator {
                 name: 'awsRegion',
                 message: 'Target AWS region?',
                 choices: ['us-east-1'],
-                default: 'us-east-1'
+                default: globalConfig.defaultAwsRegion || 'us-east-1'
             }
         ]);
 
