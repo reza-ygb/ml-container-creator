@@ -18,18 +18,19 @@ const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.ml-container-creator-rc.jso
  * @see https://yeoman.io/authoring/
  */
 module.exports = class extends Generator {
-/**
- * Tracks which features are currently implemented and available.
- * Used for validation to prevent users from selecting unsupported options.
- * 
- * @type {Object}
- * @property {string[]} frameworks - Supported ML frameworks
- * @property {string[]} modelServer - Supported model serving frameworks
- * @property {string[]} deployment - Supported deployment targets
- * @property {string[]} testTypes - Available test types
- * @property {string[]} instanceTypes - Supported instance configurations
- * @property {string[]} awsRegions - Available AWS regions
- */
+
+    /**
+     * Tracks which features are currently implemented and available.
+     * Used for validation to prevent users from selecting unsupported options.
+     * 
+     * @type {Object}
+     * @property {string[]} frameworks - Supported ML frameworks
+     * @property {string[]} modelServer - Supported model serving frameworks
+     * @property {string[]} deployment - Supported deployment targets
+     * @property {string[]} testTypes - Available test types
+     * @property {string[]} instanceTypes - Supported instance configurations
+     * @property {string[]} awsRegions - Available AWS regions
+     */
     SUPPORTED_OPTIONS = {
         frameworks: ['sklearn', 'xgboost', 'tensorflow', 'transformers'],
         modelServer: ['flask', 'fast-api', 'vllm', 'sglang'],
@@ -52,37 +53,44 @@ module.exports = class extends Generator {
         this.log('🔍 Checking for existing configuration...');
         this.globalConfig = {};
         
-        // Check if config exists before attempting to read
-        if (fs.existsSync(GLOBAL_CONFIG_PATH)) {
-            try {
-                this.globalConfig = JSON.parse(await fs.promises.readFile(GLOBAL_CONFIG_PATH, 'utf8'));
-                this.log('✅ Configuration found. Loading defaults...');
-            } catch (e) {
-                // Log error details if file is corrupted
-                this.log('⚠️ Could not read configuration file: ' + (e && e.message ? e.message : e) + '. Using defaults.');
-            }
-        } else {
-            this.log('\n👋 First time setup detected! Please configure your defaults.');
-            
-            // Prompt only on first run
-            const setupAnswers = await this.prompt([
-                {
-                    type: 'list',
-                    name: 'defaultAwsRegion',
-                    message: 'What is your preferred default AWS Region?',
-                    choices: ['us-east-1'],
-                    default: 'us-east-1'
-                }
-            ]);
 
-            this.globalConfig = setupAnswers;
-            
-            // Save configuration asynchronously to avoid blocking the event loop
-            try {
-                await fs.promises.writeFile(GLOBAL_CONFIG_PATH, JSON.stringify(this.globalConfig, null, 2), { mode: 0o600 });
-                this.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
-            } catch (err) {
-                this.log('⚠️ Could not save configuration file: ' + (err && err.message ? err.message : err));
+        // Attempt to read config; handle missing or corrupted file
+        try {
+            this.globalConfig = JSON.parse(await fs.promises.readFile(GLOBAL_CONFIG_PATH, 'utf8'));
+            this.log('✅ Configuration found. Loading defaults...');
+        } catch (e) {
+            if (e && e.code === 'ENOENT') {
+                this.log('⚠️ Could not read configuration file: ' + (e?.message ?? e) + '. Using defaults.');
+                // Prompt only on first run
+                const setupAnswers = await this.prompt([
+                    {
+                        type: 'list',
+                        name: 'defaultAwsRegion',
+                        message: 'What is your preferred default AWS Region?',
+                        choices: ['us-east-1'],
+                        default: 'us-east-1'
+                    }
+                ]);
+                this.globalConfig = setupAnswers;
+                
+                // Save configuration using promise-based API for better async handling
+                try {
+                    await fs.promises.writeFile(GLOBAL_CONFIG_PATH, JSON.stringify(this.globalConfig, null, 2));
+                    // Set file permissions to 0o600 on non-Windows platforms
+                    if (process.platform !== 'win32') {
+                        try {
+                            await fs.promises.chmod(GLOBAL_CONFIG_PATH, 0o600);
+                        } catch (chmodErr) {
+                            this.log('⚠️ Could not set file permissions: ' + (chmodErr && chmodErr.message ? chmodErr.message : chmodErr));
+                        }
+                    }
+                    this.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
+                } catch (err) {
+                    this.log('⚠️ Could not save configuration file: ' + (err && err.message ? err.message : err));
+                }
+            } else {
+                // Log error details if file is corrupted or unreadable
+                this.log('⚠️ Could not read configuration file: ' + (e && e.message ? e.message : e) + '. Using defaults.');
             }
         }
     }
