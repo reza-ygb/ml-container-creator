@@ -1,7 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const Generator = require('yeoman-generator').default || require('yeoman-generator');
+
+// ✅ FIX 2: متغیر ثابت در سطح ماژول (بیرون کلاس)
+const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.ml-container-creator-rc.json');
 
 /**
  * ML Container Creator Generator
@@ -14,27 +19,55 @@ const Generator = require('yeoman-generator').default || require('yeoman-generat
  */
 module.exports = class extends Generator {
 
-    /**
-     * Tracks which features are currently implemented and available.
-     * Used for validation to prevent users from selecting unsupported options.
-     * 
-     * @type {Object}
-     * @property {string[]} frameworks - Supported ML frameworks
-     * @property {string[]} modelServer - Supported model serving frameworks
-     * @property {string[]} deployment - Supported deployment targets
-     * @property {string[]} testTypes - Available test types
-     * @property {string[]} instanceTypes - Supported instance configurations
-     * @property {string[]} awsRegions - Available AWS regions
-     */
     SUPPORTED_OPTIONS = {
         frameworks: ['sklearn', 'xgboost', 'tensorflow', 'transformers'],
         modelServer: ['flask', 'fast-api', 'vllm', 'sglang'],
         deployment: ['sagemaker'],
         testTypes: ['local-model-cli', 'local-model-server', 'hosted-model-endpoint'],
         instanceTypes: ['cpu-optimized'],
-        // inputFormats: ['application/json'], // Future: Support multiple input formats
         awsRegions: ['us-east-1']
     };
+
+    /**
+     * ✅ FIX 1: استفاده از متد initializing (مخصوص کارهای اولیه)
+     */
+    async initializing() {
+        this.log('🔍 Checking for existing configuration...');
+        this.globalConfig = {};
+
+        // خواندن کانفیگ (Sync برای خواندن در شروع برنامه مشکلی ندارد)
+        if (fs.existsSync(GLOBAL_CONFIG_PATH)) {
+            try {
+                this.globalConfig = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_PATH, 'utf8'));
+                this.log('✅ Configuration found. Loading defaults...');
+            } catch (e) {
+                // اگر فایل خراب بود، نادیده بگیر
+            }
+        } else {
+            this.log('\n👋 First time setup detected! Please configure your defaults.');
+            
+            // پرسیدن سوال فقط در بار اول
+            const setupAnswers = await this.prompt([
+                {
+                    type: 'list',
+                    name: 'defaultAwsRegion',
+                    message: 'What is your preferred default AWS Region?',
+                    choices: ['us-east-1'],
+                    default: 'us-east-1'
+                }
+            ]);
+
+            this.globalConfig = setupAnswers;
+            
+            // ✅ FIX 3: ذخیره کردن به صورت Async (غیرهمگام)
+            try {
+                await fs.promises.writeFile(GLOBAL_CONFIG_PATH, JSON.stringify(this.globalConfig, null, 2));
+                this.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
+            } catch (err) {
+                console.warn('⚠️ Could not save configuration file.');
+            }
+        }
+    }
 
     /**
      * Prompting phase - Collects user input through interactive prompts.
