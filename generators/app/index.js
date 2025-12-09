@@ -40,8 +40,8 @@ module.exports = class extends Generator {
     async initializing() {
         this.log('🔍 Checking for existing configuration...');
         this.globalConfig = {};
-
-        // Read config (Sync is acceptable for startup)
+        
+        // Check if config exists before attempting to read
         if (fs.existsSync(GLOBAL_CONFIG_PATH)) {
             try {
                 this.globalConfig = JSON.parse(await fs.promises.readFile(GLOBAL_CONFIG_PATH, 'utf8'));
@@ -68,7 +68,7 @@ module.exports = class extends Generator {
             
             // Save configuration asynchronously to avoid blocking the event loop
             try {
-                await fs.promises.writeFile(GLOBAL_CONFIG_PATH, JSON.stringify(this.globalConfig, null, 2));
+                await fs.promises.writeFile(GLOBAL_CONFIG_PATH, JSON.stringify(this.globalConfig, null, 2), { mode: 0o600 });
                 this.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
             } catch (err) {
                 this.log('⚠️ Could not save configuration file: ' + (err && err.message ? err.message : err));
@@ -239,8 +239,7 @@ module.exports = class extends Generator {
                 name: 'awsRegion',
                 message: 'Target AWS region?',
                 choices: ['us-east-1'],
-                default: 'us-east-1'
-            }
+                default: (this.globalConfig && this.globalConfig.defaultAwsRegion) || 'us-east-1'            }
         ]);
 
         // Phase 5: Deployment Instructions
