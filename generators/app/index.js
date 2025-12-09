@@ -239,7 +239,8 @@ module.exports = class extends Generator {
                 name: 'awsRegion',
                 message: 'Target AWS region?',
                 choices: ['us-east-1'],
-                default: (this.globalConfig && this.globalConfig.defaultAwsRegion) || 'us-east-1'            }
+                default: (this.globalConfig && this.globalConfig.defaultAwsRegion) || 'us-east-1'
+            }
         ]);
 
         // Phase 5: Deployment Instructions
