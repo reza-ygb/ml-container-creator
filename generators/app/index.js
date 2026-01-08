@@ -223,7 +223,7 @@ module.exports = class extends Generator {
                 type: 'checkbox',
                 name: 'testTypes',
                 message: 'Test type?',
-                choices: () => {
+                choices: (_answers) => {
                     // Transformers can only be tested on hosted endpoints (require GPU)
                     if (coreAnswers.framework === 'transformers') {
                         return ['hosted-model-endpoint'];
@@ -232,7 +232,7 @@ module.exports = class extends Generator {
                     return ['local-model-cli', 'local-model-server', 'hosted-model-endpoint'];
                 },
                 when: _answers => _answers.includeTesting,
-                default: () => {
+                default: (_answers) => {
                     if (coreAnswers.framework === 'transformers') {
                         return ['hosted-model-endpoint'];
                     }
@@ -261,7 +261,7 @@ module.exports = class extends Generator {
                 type: 'list',
                 name: 'instanceType',
                 message: 'Instance type?',
-                choices: () => {
+                choices: (_answers) => {
                     // Traditional ML can run on CPU or GPU
                     if (coreAnswers.framework !== 'transformers') {
                         return ['cpu-optimized', 'gpu-enabled'];
@@ -271,7 +271,7 @@ module.exports = class extends Generator {
                         return ['gpu-enabled'];
                     }
                 },
-                default: () => {
+                default: (_answers) => {
                     // Use global config default if available and valid for the framework
                     if (this.globalConfig?.defaultInstanceType) {
                         // For transformers, always force GPU
