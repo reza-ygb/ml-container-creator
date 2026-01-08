@@ -36,7 +36,7 @@ module.exports = class extends Generator {
         modelServer: ['flask', 'fast-api', 'vllm', 'sglang'],
         deployment: ['sagemaker'],
         testTypes: ['local-model-cli', 'local-model-server', 'hosted-model-endpoint'],
-        instanceTypes: ['cpu-optimized'],
+        instanceTypes: ['cpu-optimized', 'gpu-enabled'],
         awsRegions: ['us-east-1']
     };
 
@@ -60,15 +60,35 @@ module.exports = class extends Generator {
             this.log('✅ Configuration found. Loading defaults...');
         } catch (e) {
             if (e && e.code === 'ENOENT') {
-                this.log('⚠️ Could not read configuration file: ' + (e?.message ?? e) + '. Using defaults.');
+                this.log(`ℹ️ No existing configuration found. Running first-time setup to create ${GLOBAL_CONFIG_PATH} ...`);
                 // Prompt only on first run
                 const setupAnswers = await this.prompt([
                     {
                         type: 'list',
                         name: 'defaultAwsRegion',
                         message: 'What is your preferred default AWS Region?',
-                        choices: ['us-east-1'],
+                        choices: this.SUPPORTED_OPTIONS.awsRegions,
                         default: 'us-east-1'
+                    },
+                    {
+                        type: 'list',
+                        name: 'defaultInstanceType',
+                        message: 'What is your preferred default instance type?',
+                        choices: this.SUPPORTED_OPTIONS.instanceTypes,
+                        default: 'cpu-optimized'
+                    },
+                    {
+                        type: 'input',
+                        name: 'defaultIamRole',
+                        message: 'What is your default IAM role ARN? (leave empty to skip)',
+                        default: ''
+                    },
+                    {
+                        type: 'list',
+                        name: 'defaultTestPreference',
+                        message: 'Do you want to include testing by default?',
+                        choices: ['yes', 'no'],
+                        default: 'yes'
                     }
                 ]);
                 this.globalConfig = setupAnswers;
@@ -81,16 +101,16 @@ module.exports = class extends Generator {
                         try {
                             await fs.promises.chmod(GLOBAL_CONFIG_PATH, 0o600);
                         } catch (chmodErr) {
-                            this.log('⚠️ Could not set file permissions: ' + (chmodErr && chmodErr.message ? chmodErr.message : chmodErr));
+                            this.log(`⚠️ Could not set file permissions: ${chmodErr && chmodErr.message ? chmodErr.message : chmodErr}`);
                         }
                     }
                     this.log(`✅ Configuration saved to ${GLOBAL_CONFIG_PATH}\n`);
                 } catch (err) {
-                    this.log('⚠️ Could not save configuration file: ' + (err && err.message ? err.message : err));
+                    this.log(`⚠️ Could not save configuration file: ${err && err.message ? err.message : err}`);
                 }
             } else {
                 // Log error details if file is corrupted or unreadable
-                this.log('⚠️ Could not read configuration file: ' + (e && e.message ? e.message : e) + '. Using defaults.');
+                this.log(`⚠️ Could not read configuration file: ${e && e.message ? e.message : e}. Using defaults.`);
             }
         }
     }
@@ -197,13 +217,13 @@ module.exports = class extends Generator {
                 type: 'confirm',
                 name: 'includeTesting',
                 message: 'Include test suite?',
-                default: true
+                default: this.globalConfig?.defaultTestPreference === 'yes'
             },
             {
                 type: 'checkbox',
                 name: 'testTypes',
                 message: 'Test type?',
-                choices: (answers) => {
+                choices: (_answers) => {
                     // Transformers can only be tested on hosted endpoints (require GPU)
                     if (coreAnswers.framework === 'transformers') {
                         return ['hosted-model-endpoint'];
@@ -211,8 +231,8 @@ module.exports = class extends Generator {
                     // Traditional ML can be tested locally or on hosted endpoints
                     return ['local-model-cli', 'local-model-server', 'hosted-model-endpoint'];
                 },
-                when: answers => answers.includeTesting,
-                default: (answers) => {
+                when: _answers => _answers.includeTesting,
+                default: (_answers) => {
                     if (coreAnswers.framework === 'transformers') {
                         return ['hosted-model-endpoint'];
                     }
@@ -241,7 +261,7 @@ module.exports = class extends Generator {
                 type: 'list',
                 name: 'instanceType',
                 message: 'Instance type?',
-                choices: (answers) => {
+                choices: (_answers) => {
                     // Traditional ML can run on CPU or GPU
                     if (coreAnswers.framework !== 'transformers') {
                         return ['cpu-optimized', 'gpu-enabled'];
@@ -251,7 +271,21 @@ module.exports = class extends Generator {
                         return ['gpu-enabled'];
                     }
                 },
-                default: 'cpu-optimized'
+                default: (_answers) => {
+                    // Use global config default if available and valid for the framework
+                    if (this.globalConfig?.defaultInstanceType) {
+                        // For transformers, always force GPU
+                        if (coreAnswers.framework === 'transformers') {
+                            return 'gpu-enabled';
+                        }
+                        // For non-transformers, validate the saved preference is valid
+                        const validChoices = ['cpu-optimized', 'gpu-enabled'];
+                        if (validChoices.includes(this.globalConfig.defaultInstanceType)) {
+                            return this.globalConfig.defaultInstanceType;
+                        }
+                    }
+                    return 'cpu-optimized';
+                }
             },
             {
                 type: 'list',
@@ -270,6 +304,9 @@ module.exports = class extends Generator {
         console.log('\t ./build_and_push.sh -- Builds the image and pushes to ECR.');
         console.log('\t ./deploy.sh -- Deploys the image to a SageMaker AI Managed Inference Endpoint.');
         console.log('\t\t deploy.sh needs a valid IAM Role ARN as a parameter.');
+        if (this.globalConfig?.defaultIamRole) {
+            console.log(`\t\t Default IAM Role ARN: ${this.globalConfig.defaultIamRole}`);
+        }
 
         // Combine all phase answers into single object for template processing
         this.answers = {
