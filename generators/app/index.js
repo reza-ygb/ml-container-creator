@@ -36,7 +36,7 @@ module.exports = class extends Generator {
         modelServer: ['flask', 'fast-api', 'vllm', 'sglang'],
         deployment: ['sagemaker'],
         testTypes: ['local-model-cli', 'local-model-server', 'hosted-model-endpoint'],
-        instanceTypes: ['cpu-optimized'],
+        instanceTypes: ['cpu-optimized', 'gpu-enabled'],
         awsRegions: ['us-east-1']
     };
 
@@ -274,10 +274,15 @@ module.exports = class extends Generator {
                 default: () => {
                     // Use global config default if available and valid for the framework
                     if (this.globalConfig?.defaultInstanceType) {
+                        // For transformers, always force GPU
                         if (coreAnswers.framework === 'transformers') {
-                            return 'gpu-enabled'; // Force GPU for transformers
+                            return 'gpu-enabled';
                         }
-                        return this.globalConfig.defaultInstanceType;
+                        // For non-transformers, validate the saved preference is valid
+                        const validChoices = ['cpu-optimized', 'gpu-enabled'];
+                        if (validChoices.includes(this.globalConfig.defaultInstanceType)) {
+                            return this.globalConfig.defaultInstanceType;
+                        }
                     }
                     return 'cpu-optimized';
                 }
